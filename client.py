@@ -36,7 +36,7 @@ def event_gestion():
         elif(data_type == "CONNECT"):
             name = content
         elif(data_type == "JOIN"):
-            config_a_channel_button(content)
+            config_a_channel_button(content, False)
             switch_window(frames["join_frame"], frames["main_frame"])
         elif(data_type == "NAMES"):
             display_membres(channel, content.split("|"))
@@ -48,10 +48,10 @@ def event_gestion():
             change_a_nickname_user(sender, content)
         elif(data_type == "ADD"):
             if(channel == current_channel):
-                users[content]["label"].pack(side="top")
+                users[content]["button"].pack(side="top")
         elif(data_type == "DELETE"):
             if(channel == current_channel):
-                users[content]["label"].pack_forget()
+                users[content]["button"].pack_forget()
 
     data = []
     window.after(1, event_gestion)
@@ -62,7 +62,7 @@ def config_window():
     window.config(bg="dark blue")
     window.protocol("WM_DELETE_WINDOW", close_window)
 
-    config_a_channel_button("Global")
+    config_a_channel_button("Global", False)
     frames["main_left_zone_frame"].pack(side="left", fill="y")
     frames["main_rename_zone_frame"].pack(side="bottom", fill="y")
     frames["main_down_zone_frame"].pack(side="bottom")
@@ -83,29 +83,34 @@ def config_window():
 
     send_message_input.pack(side="bottom")
     back_button_channel.pack(side="top")
-    leave_channel_button.pack(side="top", pady= (0, 30))
+    leave_channel_button.pack(side="top", pady= (0, 20))
     current_label_conv.pack(side="top")
     frames["channel_left_zone_frame"].pack(side="left", fill="y")
     frames["channel_right_zone_frame"].pack(side="right", fill="y")
+    
+    user_name_on_profil.pack(side="top")
+    send_provate_message_button.pack(side="top")
+    back_button_profil.pack(side="top")
+    
 
 def display_membres(channel, membres):
     channels[channel]["membres"] = membres
     for usr in users.keys():
         if(usr in membres):
-            users[usr]["label"].pack(side="top")
+            users[usr]["button"].pack(side="top", pady=10)
         else:
-            users[usr]["label"].pack_forget()
+            users[usr]["button"].pack_forget()
 
 def new_user(user_name):
-    users[user_name] = {"label": tk.Label(frames["channel_right_zone_frame"], text=user_name, bg="blue", fg="white")}
+    users[user_name] = {"button": tk.Button(frames["channel_right_zone_frame"], text=user_name, bg="blue", fg="white", command=lambda u=user_name: go_on_profile(u))}
 
 def init_user_list(user_list):
     for user_name in user_list:
         if(user_name != ""):
-            users[user_name] = {"label": tk.Label(frames["channel_right_zone_frame"], text=user_name, bg="blue", fg="white")}
+            users[user_name] = {"button": tk.Label(frames["channel_right_zone_frame"], text=user_name, bg="blue", fg="white")}
 
 def change_a_nickname_user(previous, new):
-    users[previous]["label"].pack_forget()
+    users[previous]["button"].pack_forget()
     del users[previous]
     new_user(new)
     for channel in channels.keys():
@@ -114,8 +119,8 @@ def change_a_nickname_user(previous, new):
             channels[channel]["membres"].append(new)
 
     
-def config_a_channel_button(channel):
-    channels[channel] = {"button": tk.Button(frames["main_frame"]), "messages": [], "membres": [name]}
+def config_a_channel_button(channel, admin):
+    channels[channel] = {"button": tk.Button(frames["main_frame"]), "messages": [], "membres": [name], "admin": admin}
     channels[channel]["button"].config(text=channel, bg="black", height=2, fg="white", command=lambda c=channel: go_on_a_channel(c))
     frames["main_left_zone_frame"].pack_forget()
     frames["main_down_zone_frame"].pack_forget()
@@ -134,17 +139,29 @@ def go_on_a_channel(c):
     s.sendall(f"NAMES/{c}/{name}/|/|".encode())
 
 
+def go_on_profile(user_name):
+    user_name_on_profil.config(text=user_name)
+    send_provate_message_button.config(command=lambda u=user_name: send_private_message(u))
+    if(channels[current_channel]["admin"]):
+        remove_from_current_channel_button.config(text=f"Remove {user_name} from {current_channel}", command=lambda c=current_channel, u=user_name: remove(c, u))
+        remove_from_current_channel_button.pack(side="top")
+    else:
+        remove_from_current_channel_button.pack_forget()
+    switch_window(frames["channel_frame"], frames["profil_frame"])
 
 def switch_window(previous_frame, new_frame):
     previous_frame.pack_forget()
     new_frame.pack(expand=True, fill="both", side="top")
 
 
+def remove(channel, user_name):
+    pass
+
 
 def create_new_channel(event):
     new_channel = create_channel_input.get()
     create_channel_input.delete(0, 'end')
-    config_a_channel_button(new_channel)
+    config_a_channel_button(new_channel, True)
     s.sendall(f"CREATE/|/{name}/|/{new_channel}".encode())
     switch_window(frames["create_frame"], frames["main_frame"])
     
@@ -167,6 +184,9 @@ def send_message(event):
         send_message_input.delete(0, 'end')
         new_message(msg, current_channel, name)
         s.sendall(f"MSG/{current_channel}/{name}/|/{msg}".encode())
+
+def send_private_message(user_name):
+    pass
 
 def new_message(msg, channel, user):
     channels[channel]["messages"].append(f"[{user}]: {msg}\n")
@@ -211,7 +231,8 @@ frames = {
     "main_frame":tk.Frame(window, bg="dark blue"), 
     "create_frame": tk.Frame(window, bg="dark blue"),
     "channel_frame":  tk.Frame(window, bg="dark blue"),
-    "join_frame":  tk.Frame(window, bg="dark blue") 
+    "join_frame":  tk.Frame(window, bg="dark blue"),
+    "profil_frame": tk.Frame(window, bg="dark blue")
 }
 frames["main_down_zone_frame"] = tk.Frame(frames["main_frame"], bg="dark blue")
 frames["channel_left_zone_frame"] = tk.Frame(frames["channel_frame"], bg="dark blue")
@@ -222,6 +243,7 @@ frames["main_rename_zone_frame"] = tk.Frame(frames["main_left_zone_frame"], bg="
 back_button_create = tk.Button(frames["create_frame"], text="Back", bg="blue", fg="white", command=lambda: switch_window(frames["create_frame"], frames["main_frame"]))
 back_button_join = tk.Button(frames["join_frame"], text="Back", bg="blue", fg="white", command=lambda: switch_window(frames["join_frame"], frames["main_frame"]))
 back_button_channel = tk.Button(frames["channel_right_zone_frame"], text="Back", bg="blue", fg="white", command=lambda: switch_window(frames["channel_frame"], frames["main_frame"]))
+back_button_profil = tk.Button(frames["profil_frame"], text="Back", bg="blue", fg="white", command=lambda: switch_window(frames["profil_frame"], frames["channel_frame"]))
 
 new_channel_button = tk.Button(frames["main_down_zone_frame"], text="Create a new channel ?", bg="blue", fg="white", command=lambda: switch_window(frames["main_frame"], frames["create_frame"]))
 join_channel_button = tk.Button(frames["main_down_zone_frame"], text="Join a new channel ?", bg="blue", fg="white", command=lambda: switch_window(frames["main_frame"], frames["join_frame"]))
@@ -242,6 +264,10 @@ main_rename_label = tk.Label(frames["main_rename_zone_frame"], text="Rennomez vo
 main_rename_entry = tk.Entry(frames["main_rename_zone_frame"], bg="blue", font=("Helvetica", 15), fg="white")
 main_rename_button = tk.Button(frames["main_rename_zone_frame"], text="ok", bg="blue", font=("Helvetica", 10), command=lambda : new_name(None),  fg="white")
 main_rename_entry.bind("<Return>", lambda e:new_name(e))
+
+send_provate_message_button = tk.Button(frames["profil_frame"], text="Send a message", bg="blue", fg="white")
+remove_from_current_channel_button = tk.Button(frames["profil_frame"], bg="blue", fg="white")
+user_name_on_profil = tk.Label(frames["profil_frame"], bg="blue", fg="white")
 
 config_window()
 
