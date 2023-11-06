@@ -30,7 +30,14 @@ while(running):
             clients[f"user{nb_user}"] = {"socket": new_s, "current_channel": ["Global"]}
             channels["Global"]["membres"].append(f"user{nb_user}")
             new_s.sendall(f"CONNECT/|/Système/|/user{nb_user}{wall}".encode())
+            user_list = ""
+            for usr in clients.keys():
+                if(usr != "user"+str(nb_user)):
+                    user_list += usr+"|"
+            new_s.sendall(f"USER_LIST/|/Système/|/{user_list}{wall}".encode())
             new_s.sendall(f"MSG/Global/Système/|/Bienvenue sur le chanel Global, ici tout le monde peut lire vos messages. Tâchez d'étre respéctueux.{wall}".encode())
+            for client in clients.keys():
+                clients[client]["socket"].sendall(f"NEW_USER/|/Système/|/user{str(nb_user)+wall}".encode())
             nb_user += 1
         else:
             data = l1[i].recv(1500).decode()
@@ -50,21 +57,23 @@ while(running):
                         clients[client]["socket"].sendall((f"MSG/{channel}/{sender}/|/{content}{wall}").encode())
                     
             elif(cmd == "NICK"):
-                if(content in clients.keys()):
-                    l1[i].sendall(f"Ce nom est déjà utilisé{wall}".encode())
-                else:
-                    clients[content] = {"socket": clients[sender]["socket"], "current_channel": clients[sender]["current_channel"]}
-                    del clients[sender]
-                    for elt in channels.keys():
-                        if(sender in channels[elt]["membres"]):
-                            channels[elt]["membres"].remove(sender)
-                            channels[elt]["membres"].append(content)
+                # if(content in clients.keys()):
+                #     l1[i].sendall(f"Ce nom est déjà utilisé{wall}".encode())
+                # else:
+                clients[content] = {"socket": clients[sender]["socket"], "current_channel": clients[sender]["current_channel"]}
+                del clients[sender]
+                for elt in channels.keys():
+                    if(sender in channels[elt]["membres"]):
+                        channels[elt]["membres"].remove(sender)
+                        channels[elt]["membres"].append(content)
+                for usr in clients.keys():
+                    clients[usr]["socket"].sendall(f"NICK/|/{sender}/|/{content+wall}".encode())
                 
             elif(cmd == "NAMES"):
                 response = ""
                 for usr in channels[channel]["membres"]:
                     response += usr + "|"
-                l1[i].sendall((response+wall).encode())
+                l1[i].sendall((f"NAMES/{channel}/Système/|/{response+wall}").encode())
                     
             elif(cmd == "BYEBYE"):
                 l1[i].close()
@@ -81,13 +90,14 @@ while(running):
                 clients[receiver]["current_channel"].remove(channel)
                 channels[channel]["membres"].remove(receiver)
                 for usr in channels[channel]["membres"]:
-                    clients[usr]["socket"].sendall((f"MSG/{channel}/système/|/{receiver} a été exclu par {sender}.{wall}").encode())
+                    clients[usr]["socket"].sendall((f"MSG/{channel}/Système/|/{receiver} a été exclu par {sender}.{wall}").encode())
                             
             elif(cmd == "JOIN"):
                 content = int(content)
                 if(content < len(id_tab) and id_tab[content] != None and id_tab[content] not in clients[sender]["current_channel"]):
                     for usr in channels[id_tab[content]]["membres"]:
                         clients[usr]["socket"].sendall((f"MSG/{id_tab[content]}/Système/|/{sender} a rejoint le channel, accueilez le comme il se doit.{wall}").encode())
+                        clients[usr]["socket"].sendall((f"ADD/{id_tab[content]}/Système/|/{sender}{wall}").encode())
                     l1[i].sendall((f"JOIN/|/Système/|/{id_tab[content]}{wall}").encode())
                     l1[i].sendall((f"MSG/{id_tab[content]}/Système/|/Vous avez rejoins le channel {id_tab[content]} !{wall}").encode())
                     channels[id_tab[content]]["membres"].append(sender)
@@ -106,9 +116,9 @@ while(running):
                 channels[channel]["membres"].remove(sender)
                 clients[sender]["current_channel"].remove(channel)
                 for usr in channels[channel]["membres"]:
-                    clients[usr]["socket"].sendall((f"MSG/{channel}/système/|/{sender} est parti.{wall}").encode())
+                    clients[usr]["socket"].sendall((f"MSG/{channel}/Système/|/{sender} est parti.{wall}").encode())
+                    clients[usr]["socket"].sendall((f"DELETE/{channel}/Système/|/{sender+wall}").encode())
             
-
 s.close()
 
 
