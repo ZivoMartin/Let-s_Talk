@@ -85,13 +85,13 @@ while(running):
                             clients[usr]["socket"].sendall(f"MSG/{channel}/Système/|/{sender} à désactivé son compte.{wall}".encode())
                 
             elif(cmd == "REMOVE"):
-
                 clients[receiver]["socket"].sendall(f"REMOVED/{channel}/{sender}/|/|{wall}".encode())
                 clients[receiver]["current_channel"].remove(channel)
                 channels[channel]["membres"].remove(receiver)
                 for usr in channels[channel]["membres"]:
                     clients[usr]["socket"].sendall((f"MSG/{channel}/Système/|/{receiver} a été exclu par {sender}.{wall}").encode())
-                            
+                    clients[usr]["socket"].sendall((f"DELETE/{channel}/Système/|/{receiver+wall}").encode())
+        
             elif(cmd == "JOIN"):
                 content = int(content)
                 if(content < len(id_tab) and id_tab[content] != None and id_tab[content] not in clients[sender]["current_channel"]):

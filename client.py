@@ -52,6 +52,11 @@ def event_gestion():
         elif(data_type == "DELETE"):
             if(channel == current_channel):
                 users[content]["button"].pack_forget()
+        elif(data_type == "REMOVED"):
+            channels[channel]["button"].pack_forget()
+            del channels[channel]
+            if(current_frame == frames["channel_frame"] and current_channel == channel):
+                switch_window(frames["channel_frame"], frames["main_frame"])
 
     data = []
     window.after(1, event_gestion)
@@ -89,7 +94,7 @@ def config_window():
     frames["channel_right_zone_frame"].pack(side="right", fill="y")
     
     user_name_on_profil.pack(side="top")
-    send_provate_message_button.pack(side="top")
+    send_private_message_button.pack(side="top")
     back_button_profil.pack(side="top")
     
 
@@ -141,7 +146,7 @@ def go_on_a_channel(c):
 
 def go_on_profile(user_name):
     user_name_on_profil.config(text=user_name)
-    send_provate_message_button.config(command=lambda u=user_name: send_private_message(u))
+    send_private_message_button.config(command=lambda u=user_name: go_on_private_conv(u))
     if(channels[current_channel]["admin"]):
         remove_from_current_channel_button.config(text=f"Remove {user_name} from {current_channel}", command=lambda c=current_channel, u=user_name: remove(c, u))
         remove_from_current_channel_button.pack(side="top")
@@ -150,12 +155,14 @@ def go_on_profile(user_name):
     switch_window(frames["channel_frame"], frames["profil_frame"])
 
 def switch_window(previous_frame, new_frame):
+    global current_frame
     previous_frame.pack_forget()
     new_frame.pack(expand=True, fill="both", side="top")
+    current_frame = new_frame
 
 
 def remove(channel, user_name):
-    pass
+    s.sendall(f"REMOVE/{channel}/{name}/{user_name}/|".encode())
 
 
 def create_new_channel(event):
@@ -185,8 +192,10 @@ def send_message(event):
         new_message(msg, current_channel, name)
         s.sendall(f"MSG/{current_channel}/{name}/|/{msg}".encode())
 
-def send_private_message(user_name):
-    pass
+def go_on_private_conv(user_name):
+    if(user_name not in channels):
+        create_new_channel(user_name)
+    go_on_a_channel(user_name)
 
 def new_message(msg, channel, user):
     channels[channel]["messages"].append(f"[{user}]: {msg}\n")
@@ -209,6 +218,7 @@ def new_name(event):
         name = new_name
 
 def leave_current_channel():
+    channels[current_channel]["button"].pack_forget()
     del channels[current_channel]
     s.sendall(f"PART/{current_channel}/{name}/|/|".encode())
     switch_window(frames["channel_frame"], frames["main_frame"])
@@ -240,6 +250,8 @@ frames["channel_right_zone_frame"] = tk.Frame(frames["channel_frame"], bg="dark 
 frames["main_left_zone_frame"] = tk.Frame(frames["main_frame"], bg="dark blue")
 frames["main_rename_zone_frame"] = tk.Frame(frames["main_left_zone_frame"], bg="dark blue")
 
+current_frame = frames["main_frame"]
+
 back_button_create = tk.Button(frames["create_frame"], text="Back", bg="blue", fg="white", command=lambda: switch_window(frames["create_frame"], frames["main_frame"]))
 back_button_join = tk.Button(frames["join_frame"], text="Back", bg="blue", fg="white", command=lambda: switch_window(frames["join_frame"], frames["main_frame"]))
 back_button_channel = tk.Button(frames["channel_right_zone_frame"], text="Back", bg="blue", fg="white", command=lambda: switch_window(frames["channel_frame"], frames["main_frame"]))
@@ -265,7 +277,7 @@ main_rename_entry = tk.Entry(frames["main_rename_zone_frame"], bg="blue", font=(
 main_rename_button = tk.Button(frames["main_rename_zone_frame"], text="ok", bg="blue", font=("Helvetica", 10), command=lambda : new_name(None),  fg="white")
 main_rename_entry.bind("<Return>", lambda e:new_name(e))
 
-send_provate_message_button = tk.Button(frames["profil_frame"], text="Send a message", bg="blue", fg="white")
+send_private_message_button = tk.Button(frames["profil_frame"], text="Send a message", bg="blue", fg="white")
 remove_from_current_channel_button = tk.Button(frames["profil_frame"], bg="blue", fg="white")
 user_name_on_profil = tk.Label(frames["profil_frame"], bg="blue", fg="white")
 
